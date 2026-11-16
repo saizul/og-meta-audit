@@ -1,0 +1,31 @@
+# Example workflow for a website repository: audit the live sitemap every
+# night and on demand, and fail the job when errors are found.
+# The package comes from GitHub Packages, so the job needs read:packages.
+name: Social metadata audit
+
+on:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: "@saizul"
+      - run: npm install --global @saizul/og-meta-audit
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Audit
+        run: og-meta-audit --sitemap https://example.com/sitemap.xml --limit 300 --format markdown --output audit.md
+      - name: Add the report to the job summary
+        if: always()
+        run: cat audit.md >> "$GITHUB_STEP_SUMMARY"

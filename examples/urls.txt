@@ -1,0 +1,4 @@
+# One URL per line. Text after " #" is a comment.
+https://example.com/
+https://example.com/about/   # profile page
+https://example.com/blog/

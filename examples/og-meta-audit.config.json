@@ -1,0 +1,16 @@
+{
+  "concurrency": 4,
+  "timeoutMs": 10000,
+  "failOn": "error",
+  "sitemapLimit": 200,
+  "rules": {
+    "apple-touch-icon-missing": "off",
+    "jsonld-missing": "off",
+    "hreflang-*": "off",
+    "title-length": ["warn", { "min": 25, "max": 65 }],
+    "description-length": ["warn", { "min": 50, "max": 160 }],
+    "og-image-aspect-ratio": ["warn", { "tolerance": 0.1 }],
+    "og-image-entity-mismatch": ["error", { "scope": "profile" }],
+    "duplicate-title": "error"
+  }
+}

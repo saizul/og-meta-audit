@@ -6,6 +6,7 @@ import {
   getRule,
   isValidHreflang,
   listRules,
+  parseIsoDateTime,
   resolveRules,
   rules,
   textLength,
@@ -275,5 +276,90 @@ describe('icons and JSON-LD', () => {
     const page = await auditHtml(fixture('home.html'), 'https://example.com/', { checkImages: false });
     const serious = page.findings.filter((f) => f.severity !== 'info');
     assert.deepEqual(serious, []);
+  });
+});
+
+describe('article rules', () => {
+  const article = (inner: string) => head(`<meta property="og:type" content="article">${inner}`);
+
+  it('accepts complete, ordered article times', async () => {
+    const ids = await ruleIds(
+      article(
+        '<meta property="article:published_time" content="2026-11-19T10:30:00+06:00">' +
+          '<meta property="article:modified_time" content="2026-11-19T05:00Z">' +
+          '<meta property="article:expiration_time" content="2027-01-01">',
+      ),
+    );
+    assert.ok(!ids.some((id) => id.startsWith('article-')), ids.join(', '));
+  });
+
+  it('reports a missing published time on articles only', async () => {
+    assert.ok((await ruleIds(article(''))).includes('article-published-time-missing'));
+    assert.ok(
+      !(await ruleIds(head('<meta property="og:type" content="website">'))).includes(
+        'article-published-time-missing',
+      ),
+    );
+  });
+
+  it('reports invalid times', async () => {
+    const found = await findings(
+      article(
+        '<meta property="article:published_time" content="19/11/2026">' +
+          '<meta property="article:modified_time" content="2026-02-30">',
+      ),
+      'article-time-invalid',
+    );
+    assert.equal(found.length, 2);
+    assert.match(found[0]!.message, /19\/11\/2026/);
+    assert.equal(found[1]!.data?.property, 'article:modified_time');
+  });
+
+  it('reports times in the wrong order, comparing offsets', async () => {
+    const found = await findings(
+      article(
+        '<meta property="article:published_time" content="2026-11-19T10:00:00+06:00">' +
+          '<meta property="article:modified_time" content="2026-11-19T03:59:00Z">' +
+          '<meta property="article:expiration_time" content="2026-11-19T04:00:00Z">',
+      ),
+      'article-time-order',
+    );
+    assert.equal(found.length, 2);
+    assert.match(found[0]!.message, /modified_time/);
+    assert.match(found[1]!.message, /expiration_time/);
+  });
+
+  it('reports article properties on non-article pages', async () => {
+    const found = await findings(
+      head(
+        '<meta property="og:type" content="website"><meta property="article:author" content="https://example.com/me">',
+      ),
+      'article-meta-without-article-type',
+    );
+    assert.equal(found.length, 1);
+    assert.deepEqual(found[0]!.data?.properties, ['article:author']);
+  });
+});
+
+describe('parseIsoDateTime', () => {
+  it('parses dates and date-times with offsets', () => {
+    assert.equal(parseIsoDateTime('2026-11-19'), Date.UTC(2026, 10, 19));
+    assert.equal(parseIsoDateTime('2026-11-19T10:30:00+06:00'), Date.UTC(2026, 10, 19, 4, 30));
+    assert.equal(parseIsoDateTime('2026-11-19T10:30-0130'), Date.UTC(2026, 10, 19, 12, 0));
+    assert.equal(parseIsoDateTime('2026-11-19T10:30:15.250Z'), Date.UTC(2026, 10, 19, 10, 30, 15));
+    assert.equal(parseIsoDateTime(' 2024-02-29T00:00Z '), Date.UTC(2024, 1, 29));
+  });
+
+  it('rejects invalid values', () => {
+    for (const bad of [
+      '',
+      '2026-13-01',
+      '2026-02-29',
+      '2026-11-19T24:00',
+      '19 Nov 2026',
+      '2026-11-19T10:30+25:00',
+    ]) {
+      assert.equal(parseIsoDateTime(bad), undefined, bad);
+    }
   });
 });

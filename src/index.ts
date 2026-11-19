@@ -34,6 +34,7 @@ export {
   type TextReportOptions,
 } from './report/index.js';
 export { textLength } from './rules/basics.js';
+export { parseIsoDateTime } from './rules/social.js';
 export { isProfilePage } from './rules/images.js';
 export {
   atLeast,

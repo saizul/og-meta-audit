@@ -77,6 +77,8 @@ export interface PageMeta {
   og: Record<string, string[]>;
   /** All `twitter:*` metadata. */
   twitter: Record<string, string[]>;
+  /** All `article:*` properties (the Open Graph article namespace). */
+  article: Record<string, string[]>;
   hreflang: HreflangLink[];
   icons: IconLink[];
   jsonld: JsonLdBlock[];

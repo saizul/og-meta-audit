@@ -5,7 +5,7 @@ import { basicRules, fetchRules } from './basics.js';
 import { imageRules } from './images.js';
 import { hreflangRules, iconRules } from './links.js';
 import { siteRules } from './site.js';
-import { openGraphRules, twitterRules } from './social.js';
+import { articleRules, openGraphRules, twitterRules } from './social.js';
 import { jsonLdRules } from './structured.js';
 import type { FetchRule, PageRule, Rule, RuleInfo, SiteRule } from './types.js';
 
@@ -16,6 +16,7 @@ export const rules: readonly Rule[] = [
   ...fetchRules,
   ...basicRules,
   ...openGraphRules,
+  ...articleRules,
   ...twitterRules,
   ...imageRules,
   ...hreflangRules,

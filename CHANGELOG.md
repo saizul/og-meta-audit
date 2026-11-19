@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Open Graph article rules: `article-published-time-missing` (info), `article-time-invalid` (warn: published,
+  modified or expiration time is not ISO 8601), `article-time-order` (warn: modified before published, or
+  expiration not after it; offsets are compared in UTC) and `article-meta-without-article-type` (info: `article:*`
+  properties on a page whose `og:type` is not article).
+- `PageMeta.article` holds every `article:*` property; `parseIsoDateTime()` is exported.
+- A code of conduct, issue forms and a pull request template.
+
 ## [0.1.0] - 2026-11-16
 
 ### Added

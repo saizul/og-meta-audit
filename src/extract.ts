@@ -41,6 +41,7 @@ export function extractMeta(html: string, pageUrl: string): PageMeta {
     robots: [],
     og: {},
     twitter: {},
+    article: {},
     hreflang: [],
     icons: [],
     jsonld: [],
@@ -72,6 +73,7 @@ export function extractMeta(html: string, pageUrl: string): PageMeta {
         const key = prop || name;
         if (key.startsWith('og:')) push(meta.og, key, content);
         else if (key.startsWith('twitter:')) push(meta.twitter, key, content);
+        else if (key.startsWith('article:')) push(meta.article, key, content);
         break;
       }
       case 'link': {

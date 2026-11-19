@@ -72,11 +72,15 @@ and looks across all pages of a site.
   `og:image` versus the Person image on profile and about pages, sameAs lists,
   entity names and `og:site_name`. Different URLs count as the same image when
   they redirect to the same file or have identical bytes (SHA-256).
+- **Article metadata**: on `og:type` article pages, `article:published_time`,
+  `article:modified_time` and `article:expiration_time` must be ISO 8601 and
+  in order (offsets are compared in UTC), and `article:*` properties on other
+  page types are flagged because platforms ignore them.
 - **Duplicates** of titles, meta descriptions and `og:title` across pages.
 - **hreflang** code validation (`en_US` and `en-UK` are caught), duplicates,
   self references, `x-default`, and missing return links between audited
   pages.
-- **82 rules** with stable IDs, three severities and options. A JSON config
+- **86 rules** with stable IDs, three severities and options. A JSON config
   file turns rules off, changes severities and sets thresholds; `prefix-*`
   patterns work.
 - **Output**: a terminal table, JSON, Markdown (for pull requests and job
@@ -276,6 +280,10 @@ look at one page; `site` rules compare pages.
 | `og-type-unknown` | info | page | og:type is not a standard Open Graph type and has no namespace prefix. |
 | `og-locale-invalid` | info | page | og:locale should look like language_TERRITORY, for example en_US or bn_BD. |
 | `og-title-same-as-site-name` | info | page | og:title only repeats og:site_name, so previews do not say what the page is about. |
+| `article-published-time-missing` | info | page | An og:type article page has no article:published_time. Facebook, LinkedIn and news aggregators show and sort by it. |
+| `article-time-invalid` | warn | page | article:published_time, article:modified_time or article:expiration_time is not an ISO 8601 date or date-time (2026-11-19T10:30:00+06:00). |
+| `article-time-order` | warn | page | article:modified_time is earlier than article:published_time, or article:expiration_time is not after it. |
+| `article-meta-without-article-type` | info | page | The page has article:* properties but og:type is not article, so platforms ignore them. Set og:type to article. |
 | `twitter-card-missing` | warn | page | No twitter:card. X shows a small summary card or none at all. |
 | `twitter-card-invalid` | error | page | twitter:card must be summary, summary_large_image, app or player. |
 | `twitter-title-missing` | info | page | Neither twitter:title nor og:title is present. |
@@ -342,7 +350,7 @@ has a `ProfilePage` or `AboutPage` node, or the page URL is the Person's `url`.
 | `auditHtml(html, url, options?)` | Audits an HTML string as if it were served at `url`. |
 | `exitCodeFor(report, failOn?)` | `1` when any finding reaches `failOn` (default `error`), else `0`. |
 | `allFindings(report)` | Page and site findings in one list. |
-| `extractMeta(html, url)` | `PageMeta`: titles, descriptions, canonicals, robots, `og`, `twitter`, hreflang, icons, JSON-LD blocks, entities. |
+| `extractMeta(html, url)` | `PageMeta`: titles, descriptions, canonicals, robots, `og`, `twitter`, `article`, hreflang, icons, JSON-LD blocks, entities. |
 | `ogImageUrl(meta, url)`, `twitterImageUrl(meta, url)` | The resolved image URLs of a page. |
 | `parseJsonLdBlocks(sources)`, `extractEntities(blocks, url)` | JSON-LD parsing with `@graph` and `@id` merging. |
 | `imageDimensions(bytes)` | `{ format, width?, height? }` from the first bytes of PNG, JPEG, GIF, WebP, AVIF, BMP, ICO or SVG. |
@@ -354,7 +362,7 @@ has a `ProfilePage` or `AboutPage` node, or the page URL is the Person's `url`.
 | `resolveRules(settings)`, `runPageRules(page, resolved)`, `runSiteRules(pages, resolved)` | The rules engine, for custom pipelines. |
 | `loadConfig(path?, cwd?)`, `validateConfig(obj)`, `mergeConfig(...configs)` | Config files. |
 | `formatText`, `formatJson`, `formatMarkdown`, `formatHtml`, `formatReport(report, format)` | Reporters. |
-| `isValidHreflang(code)`, `textLength(text)`, `normalizeForCompare(url)` | Helpers. |
+| `isValidHreflang(code)`, `textLength(text)`, `normalizeForCompare(url)`, `parseIsoDateTime(value)` | Helpers. |
 
 All types (`AuditReport`, `PageResult`, `PageMeta`, `Finding`, `ImageInfo`,
 `JsonLdEntity`, `RuleSetting`, ...) are exported.
@@ -423,8 +431,8 @@ Node 20 and 22.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: see
-[SECURITY.md](SECURITY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) and the [code of conduct](CODE_OF_CONDUCT.md).
+Security issues: see [SECURITY.md](SECURITY.md).
 
 ## License
 

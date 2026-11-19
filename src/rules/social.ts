@@ -304,3 +304,116 @@ export const twitterRules: PageRule[] = [
     },
   },
 ];
+
+const ARTICLE_TIMES = ['article:published_time', 'article:modified_time', 'article:expiration_time'] as const;
+
+const ISO_DATE_TIME =
+  /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,9})?)?(Z|[+-](\d{2}):?(\d{2}))?)?$/i;
+
+/**
+ * Parses an ISO 8601 date (`2026-11-19`) or date-time
+ * (`2026-11-19T10:30:00+06:00`, `2026-11-19T04:30Z`) as used by Open Graph
+ * `article:*` times. Returns milliseconds since the epoch (UTC; a time without
+ * an offset is read as UTC), or undefined when the value is not valid.
+ */
+export function parseIsoDateTime(value: string): number | undefined {
+  const m = ISO_DATE_TIME.exec(value.trim());
+  if (!m) return undefined;
+  const [, y, mo, d, h = '0', mi = '0', s = '0', zone, oh = '0', om = '0'] = m;
+  const year = Number(y);
+  const month = Number(mo);
+  const day = Number(d);
+  const hour = Number(h);
+  const minute = Number(mi);
+  const second = Number(s);
+  if (month < 1 || month > 12 || day < 1 || hour > 23 || minute > 59 || second > 59) return undefined;
+  if (Number(oh) > 23 || Number(om) > 59) return undefined;
+  const utc = Date.UTC(year, month - 1, day, hour, minute, second);
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (check.getUTCDate() !== day || check.getUTCMonth() !== month - 1) return undefined;
+  const sign = zone && zone[0] === '-' ? -1 : 1;
+  const offset = zone && zone.toUpperCase() !== 'Z' ? sign * (Number(oh) * 60 + Number(om)) : 0;
+  return utc - offset * 60_000;
+}
+
+function isArticle(meta: PageMeta): boolean {
+  return (first(meta.og, 'og:type') ?? '').trim().toLowerCase() === 'article';
+}
+
+export const articleRules: PageRule[] = [
+  {
+    id: 'article-published-time-missing',
+    scope: 'page',
+    category: 'opengraph',
+    severity: 'info',
+    description:
+      'An og:type article page has no article:published_time. Facebook, LinkedIn and news aggregators show and sort by it.',
+    check({ meta, report }) {
+      if (isArticle(meta) && !first(meta.article, 'article:published_time')) {
+        report('og:type is article but article:published_time is missing');
+      }
+    },
+  },
+  {
+    id: 'article-time-invalid',
+    scope: 'page',
+    category: 'opengraph',
+    severity: 'warn',
+    description:
+      'article:published_time, article:modified_time or article:expiration_time is not an ISO 8601 date or date-time (2026-11-19T10:30:00+06:00).',
+    check({ meta, report }) {
+      for (const key of ARTICLE_TIMES) {
+        for (const value of meta.article[key] ?? []) {
+          if (parseIsoDateTime(value) === undefined) {
+            report(`${key} "${value}" is not an ISO 8601 date or date-time`, { property: key, value });
+          }
+        }
+      }
+    },
+  },
+  {
+    id: 'article-time-order',
+    scope: 'page',
+    category: 'opengraph',
+    severity: 'warn',
+    description:
+      'article:modified_time is earlier than article:published_time, or article:expiration_time is not after it.',
+    check({ meta, report }) {
+      const published = first(meta.article, 'article:published_time');
+      const at = published === undefined ? undefined : parseIsoDateTime(published);
+      if (at === undefined) return;
+      const modified = first(meta.article, 'article:modified_time');
+      const mod = modified === undefined ? undefined : parseIsoDateTime(modified);
+      if (mod !== undefined && mod < at) {
+        report(`article:modified_time ${modified} is before article:published_time ${published}`, {
+          published,
+          modified,
+        });
+      }
+      const expires = first(meta.article, 'article:expiration_time');
+      const exp = expires === undefined ? undefined : parseIsoDateTime(expires);
+      if (exp !== undefined && exp <= at) {
+        report(`article:expiration_time ${expires} is not after article:published_time ${published}`, {
+          published,
+          expires,
+        });
+      }
+    },
+  },
+  {
+    id: 'article-meta-without-article-type',
+    scope: 'page',
+    category: 'opengraph',
+    severity: 'info',
+    description:
+      'The page has article:* properties but og:type is not article, so platforms ignore them. Set og:type to article.',
+    check({ meta, report }) {
+      const keys = Object.keys(meta.article);
+      if (keys.length > 0 && !isArticle(meta)) {
+        report(`${keys.join(', ')} set, but og:type is "${first(meta.og, 'og:type') ?? 'missing'}"`, {
+          properties: keys,
+        });
+      }
+    },
+  },
+];
